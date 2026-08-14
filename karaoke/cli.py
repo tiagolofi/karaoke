@@ -28,6 +28,12 @@ def main() -> None:
     parser.add_argument("video", type=Path, help="Arquivo de vídeo de entrada")
     parser.add_argument("-o", "--output", type=Path, default=Path("karaoke.mp4"))
     parser.add_argument("--work-dir", type=Path, default=Path(".karaoke-work"))
+    parser.add_argument(
+        "--models-dir",
+        type=Path,
+        default=Path("modelos-baixados"),
+        help="Diretório persistente de modelos baixados (padrão: modelos-baixados)",
+    )
     parser.add_argument("--keep-work-dir", action="store_true", help="Preserva os arquivos intermediários para depuração")
     parser.add_argument(
         "--audit-json",
@@ -43,7 +49,7 @@ def main() -> None:
 
     audio = extract_audio(args.video, args.work_dir / "audio.wav")
     lyrics = transcribe(audio, args.model, args.language)
-    vocals, instrumental = separate_stems(audio, args.work_dir / "stems")
+    vocals, instrumental = separate_stems(audio, args.work_dir / "stems", args.models_dir)
     notes = synchronize(lyrics, detect_notes(str(vocals)))
     subtitles = write_ass(lyrics, notes, args.work_dir / "karaoke.ass")
     render_video(args.video, instrumental, subtitles, args.output)
@@ -57,6 +63,7 @@ def main() -> None:
     )
     print(f"Vídeo pronto: {args.output.resolve()}")
     print(f"Faixa instrumental: {instrumental.resolve()}")
+    print(f"Modelos baixados: {args.models_dir.resolve()}")
     print(f"Auditoria de legendas: {audit_path.resolve()}")
     if not args.keep_work_dir:
         cleanup_work_dir(args.work_dir, [args.output, audit_path])

@@ -56,6 +56,7 @@ env/bin/karaoke video.mp4 --language pt --model small \
 | `video` | — | Caminho do vídeo de entrada. |
 | `-o`, `--output` | `karaoke.mp4` | Caminho do vídeo final. O audit padrão usa o mesmo nome com `.audit.json`. |
 | `--work-dir` | `.karaoke-work` | Diretório de áudio, stems e legendas intermediários. |
+| `--models-dir` | `modelos-baixados` | Cache persistente dos modelos de separação; é ignorado pelo Git. |
 | `--keep-work-dir` | desativada | Mantém os intermediários ao término; útil para depuração. |
 | `--audit-json` | `<vídeo-final>.audit.json` | Define um destino alternativo para o JSON de auditoria. |
 | `--model` | `small` | Modelo Faster-Whisper, como `tiny`, `base`, `small`, `medium` ou `large-v3`. |
