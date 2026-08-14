@@ -10,5 +10,10 @@ def transcribe(audio: Path, model_size: str = "small", language: str | None = No
     from faster_whisper import WhisperModel
 
     model = WhisperModel(model_size, device="auto", compute_type="int8")
-    segments, _ = model.transcribe(str(audio), language=language, vad_filter=True)
+    segments, _ = model.transcribe(
+        str(audio),
+        language=language,
+        vad_filter=False,
+        condition_on_previous_text=False,
+    )
     return [TimedText(segment.text.strip(), segment.start, segment.end) for segment in segments if segment.text.strip()]

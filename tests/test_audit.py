@@ -9,12 +9,14 @@ def test_audit_json_contains_ordered_timeline(tmp_path):
     write_audit_json(
         destination,
         tmp_path / "video.mp4",
+        tmp_path / "video-pronto.mp4",
         [TimedText("primeira frase", 1.25, 2.5)],
         [SungNote(1.5, 1.8, 60, 261.625, "primeira frase")],
     )
 
     data = json.loads(destination.read_text(encoding="utf-8"))
     assert data["schema_version"] == 1
+    assert data["rendered_video"]["filename"] == "video-pronto.mp4"
     assert data["lyrics"][0]["text"] == "primeira frase"
     assert data["notes"][0]["midi"] == 60
     assert data["notes"][0]["note_name"] == "C4"

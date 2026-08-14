@@ -1,32 +1,104 @@
 # Karaoke
 
-Pipeline em Python 3.12 para converter um vídeo em um vídeo de karaokê: extrai o áudio, transcreve a voz com Whisper, separa vocais e instrumental com Audio Separator, identifica notas com pYIN/librosa e renderiza as letras e notas sincronizadas no vídeo.
+Projeto Python 3.12 para gerar vídeos de karaokê e avaliar afinação em tempo real. O pipeline extrai o áudio, transcreve com Whisper, separa voz e instrumental, detecta notas e renderiza legendas sincronizadas. A aplicação em tempo real compara o microfone com o perfil de notas do vídeo escolhido.
 
 ## Requisitos
 
 - Python 3.12.x
 - FFmpeg com filtro `ass`/libass disponível no `PATH`
-- Dependências Python do projeto
+- PortAudio no sistema para acesso ao microfone (`sudo apt-get install libportaudio2` no Ubuntu/Debian)
 
-## Instalação
+## Inicialização
+
+No diretório do projeto, crie/atualize o ambiente e instale todas as dependências:
 
 ```bash
 cd /home/tiagolofi/Documentos/projetos/karaoke
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
+python3.12 -m venv env
+env/bin/python -m pip install --upgrade pip
+env/bin/python -m pip install -e ".[dev]"
 ```
 
-## Uso
+## Uso do pipeline
+
+### Mais simples
+
+Gera um vídeo de karaokê e o seu JSON de auditoria pareado:
 
 ```bash
-karaoke /caminho/para/video.mp4 --language pt --model small -o resultado-karaoke.mp4
+env/bin/karaoke video.mp4 --language pt -o video-pronto-1.mp4
 ```
 
-Arquivos intermediários ficam em `.karaoke-work/` (ou no diretório definido por `--work-dir`). O resultado usa o vídeo original, mas substitui sua faixa de áudio pelo instrumental separado. As legendas amarelas com borda preta espessa, a nota musical cromática, MIDI e frequência são exibidas no tempo detectado.
+O resultado é composto por `video-pronto-1.mp4` e `video-pronto-1.audit.json`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
 
-Ao terminar, o pipeline também cria `.karaoke-work/audit.json`. Ele contém as legendas, notas e uma `timeline` ordenada por tempo, facilitando a auditoria de divergências de sincronização. Cada nota inclui o MIDI e `note_name` na escala cromática de C a B, com acidentes (por exemplo, `C4`, `C#4` e `A#3`). Para salvar em outro caminho, use `--audit-json /caminho/auditoria.json`.
+### Com modelo e auditoria personalizados
+
+```bash
+env/bin/karaoke video.mp4 --language pt --model medium \
+  -o "Aonde quer chegar - Turma do Pagode.mp4" \
+  --audit-json "Aonde quer chegar - Turma do Pagode.audit.json"
+```
+
+### Depuração avançada
+
+Preserva os artefatos intermediários e usa uma área de trabalho isolada:
+
+```bash
+env/bin/karaoke video.mp4 --language pt --model small \
+  --work-dir .karaoke-work-debug --keep-work-dir \
+  -o video-debug.mp4
+```
+
+### Flags do pipeline `karaoke`
+
+| Flag | Padrão | Descrição |
+| --- | --- | --- |
+| `video` | — | Caminho do vídeo de entrada. |
+| `-o`, `--output` | `karaoke.mp4` | Caminho do vídeo final. O audit padrão usa o mesmo nome com `.audit.json`. |
+| `--work-dir` | `.karaoke-work` | Diretório de áudio, stems e legendas intermediários. |
+| `--keep-work-dir` | desativada | Mantém os intermediários ao término; útil para depuração. |
+| `--audit-json` | `<vídeo-final>.audit.json` | Define um destino alternativo para o JSON de auditoria. |
+| `--model` | `small` | Modelo Faster-Whisper, como `tiny`, `base`, `small`, `medium` ou `large-v3`. |
+| `--language` | detecção automática | Idioma ISO-639-1, por exemplo `pt` ou `en`. |
+| `-h`, `--help` | — | Exibe a ajuda do comando. |
+
+## Aplicação em tempo real
+
+Use fones de ouvido para que o áudio do vídeo não entre no microfone. A janela exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone e o percentual de acerto no canto. Ao fim do vídeo, ela mostra `Sua nota foi: XX.X%`.
+
+### Inicializar a aplicação
+
+Abre a biblioteca de vídeos da pasta atual:
+
+```bash
+env/bin/python karaoke-real-time/app.py --library .
+```
+
+Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Clique em **Atualizar lista** após adicionar novos vídeos.
+
+### Abrir um vídeo específico
+
+```bash
+env/bin/python karaoke-real-time/app.py "Aonde quer chegar - Turma do Pagode.mp4"
+```
+
+### Usar biblioteca, dispositivo e tolerância personalizados
+
+```bash
+env/bin/python karaoke-real-time/app.py --library ./minha-biblioteca \
+  --device 1 --tolerance-cents 40
+```
+
+### Flags da aplicação `karaoke-real-time`
+
+| Flag | Padrão | Descrição |
+| --- | --- | --- |
+| `video` | — | Vídeo inicial opcional; a pasta dele se torna a biblioteca. |
+| `--library` | pasta atual | Pasta na qual a sidebar busca vídeos. Ignorada quando `video` é informado. |
+| `--reference` | `<vídeo>.audit.json` | Arquivo de auditoria alternativo, usado apenas para o vídeo inicial. |
+| `--device` | microfone padrão | Índice ou nome do dispositivo de entrada de áudio. |
+| `--tolerance-cents` | `50` | Margem máxima de desvio para contar um bloco como afinado. |
+| `-h`, `--help` | — | Exibe a ajuda do comando. |
 
 ## Arquitetura
 
@@ -34,11 +106,9 @@ Ao terminar, o pipeline também cria `.karaoke-work/audit.json`. Ele contém as 
 vídeo → extração de áudio → Whisper → texto ┐
                          └→ Audio Separator → vocais → pYIN/librosa → notas ─┤
                                               └→ instrumental ──────────────────┘
-                                                                    └→ sincronização → vídeo final
+                                                                    └→ vídeo + audit.json
+
+microfone → pitch em tempo real → comparação com <vídeo>.audit.json → percentual de acerto
 ```
 
-> A transcrição é segmentada (frase); para realce palavra-a-palavra seria necessário acrescentar um alinhador forçado, como WhisperX.
-
-## Compatibilidade
-
-O Spleeter não é compatível com Python 3.12 (`Requires-Python: <3.12`) e foi substituído pelo `audio-separator` 0.44.5 com extra `cpu`, que declara suporte a Python 3.12. As versões de Whisper e librosa foram fixadas para instalações reproduzíveis.
+> A transcrição é segmentada por frase. Para realce palavra a palavra, acrescente um alinhador forçado, como WhisperX.

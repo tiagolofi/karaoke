@@ -19,6 +19,7 @@ def midi_to_note_name(midi: int) -> str:
 def write_audit_json(
     destination: Path,
     source_video: Path,
+    rendered_video: Path,
     lyrics: list[TimedText],
     notes: list[SungNote],
 ) -> Path:
@@ -44,6 +45,10 @@ def write_audit_json(
         "schema_version": 1,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source_video": str(source_video),
+        "rendered_video": {
+            "filename": rendered_video.name,
+            "path": str(rendered_video),
+        },
         "lyrics": lyric_events,
         "notes": note_events,
         "timeline": timeline,
