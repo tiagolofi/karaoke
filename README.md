@@ -1,6 +1,6 @@
 # Karaoke
 
-Pipeline em Python 3.12 para converter um vídeo em um vídeo de karaokê: extrai o áudio, transcreve a voz com Whisper, isola os vocais com Audio Separator, identifica notas com pYIN/librosa e renderiza as letras e notas sincronizadas no vídeo.
+Pipeline em Python 3.12 para converter um vídeo em um vídeo de karaokê: extrai o áudio, transcreve a voz com Whisper, separa vocais e instrumental com Audio Separator, identifica notas com pYIN/librosa e renderiza as letras e notas sincronizadas no vídeo.
 
 ## Requisitos
 
@@ -24,13 +24,16 @@ python -m pip install -e ".[dev]"
 karaoke /caminho/para/video.mp4 --language pt --model small -o resultado-karaoke.mp4
 ```
 
-Arquivos intermediários ficam em `.karaoke-work/` (ou no diretório definido por `--work-dir`). O resultado usa o vídeo original, com as legendas e a nota MIDI/frequência exibidas no tempo detectado.
+Arquivos intermediários ficam em `.karaoke-work/` (ou no diretório definido por `--work-dir`). O resultado usa o vídeo original, mas substitui sua faixa de áudio pelo instrumental separado. As legendas amarelas com borda preta espessa, a nota musical cromática, MIDI e frequência são exibidas no tempo detectado.
+
+Ao terminar, o pipeline também cria `.karaoke-work/audit.json`. Ele contém as legendas, notas e uma `timeline` ordenada por tempo, facilitando a auditoria de divergências de sincronização. Cada nota inclui o MIDI e `note_name` na escala cromática de C a B, com acidentes (por exemplo, `C4`, `C#4` e `A#3`). Para salvar em outro caminho, use `--audit-json /caminho/auditoria.json`.
 
 ## Arquitetura
 
 ```text
 vídeo → extração de áudio → Whisper → texto ┐
                          └→ Audio Separator → vocais → pYIN/librosa → notas ─┤
+                                              └→ instrumental ──────────────────┘
                                                                     └→ sincronização → vídeo final
 ```
 
