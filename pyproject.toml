@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "karaoke"
+version = "0.1.0"
+description = "Gera vídeos de karaokê com letras e notas cantadas sincronizadas."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "faster-whisper==1.2.1",
+  "librosa==0.11.0",
+  "soundfile>=0.13.1,<0.14",
+  "numpy>=1.26,<3",
+  "audio-separator[cpu]==0.44.5",
+]
+
+[project.scripts]
+karaoke = "karaoke.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9"]
