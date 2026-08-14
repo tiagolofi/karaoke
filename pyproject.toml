@@ -14,8 +14,8 @@ dependencies = [
   "soundfile>=0.13.1,<0.14",
   "numpy>=1.26,<3",
   "audio-separator[cpu]==0.44.5",
-  "sounddevice>=0.5,<0.6",
-  "PySide6>=6.8,<7",
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.32,<1",
 ]
 
 [project.scripts]

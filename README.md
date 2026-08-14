@@ -6,7 +6,7 @@ Projeto Python 3.12 para gerar vídeos de karaokê e avaliar afinação em tempo
 
 - Python 3.12.x
 - FFmpeg com filtro `ass`/libass disponível no `PATH`
-- PortAudio no sistema para acesso ao microfone (`sudo apt-get install libportaudio2` no Ubuntu/Debian)
+- Um navegador moderno com permissão para usar o microfone
 
 ## Inicialização
 
@@ -63,9 +63,9 @@ env/bin/karaoke video.mp4 --language pt --model small \
 | `--language` | detecção automática | Idioma ISO-639-1, por exemplo `pt` ou `en`. |
 | `-h`, `--help` | — | Exibe a ajuda do comando. |
 
-## Aplicação em tempo real
+## WebApp em tempo real
 
-Use fones de ouvido para que o áudio do vídeo não entre no microfone. A janela exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone e o percentual de acerto no canto. Ao fim do vídeo, ela mostra `Sua nota foi: XX.X%`.
+Use fones de ouvido para que o áudio do vídeo não entre no microfone. O WebApp exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone e o percentual de acerto no canto. Ao fim do vídeo, ele mostra `Sua nota foi: XX.X%`.
 
 ### Inicializar a aplicação
 
@@ -75,30 +75,27 @@ Abre a biblioteca de vídeos da pasta atual:
 env/bin/python karaoke-real-time/app.py --library .
 ```
 
+Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) e permita o acesso ao microfone no navegador.
+
 Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Clique em **Atualizar lista** após adicionar novos vídeos.
 
-### Abrir um vídeo específico
-
-```bash
-env/bin/python karaoke-real-time/app.py "Aonde quer chegar - Turma do Pagode.mp4"
-```
-
-### Usar biblioteca, dispositivo e tolerância personalizados
+### Usar biblioteca e servidor personalizados
 
 ```bash
 env/bin/python karaoke-real-time/app.py --library ./minha-biblioteca \
-  --device 1 --tolerance-cents 40
+  --host 127.0.0.1 --port 8080
 ```
+
+Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afinação são feitas pela interface Web.
 
 ### Flags da aplicação `karaoke-real-time`
 
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
-| `video` | — | Vídeo inicial opcional; a pasta dele se torna a biblioteca. |
-| `--library` | pasta atual | Pasta na qual a sidebar busca vídeos. Ignorada quando `video` é informado. |
-| `--reference` | `<vídeo>.audit.json` | Arquivo de auditoria alternativo, usado apenas para o vídeo inicial. |
-| `--device` | microfone padrão | Índice ou nome do dispositivo de entrada de áudio. |
-| `--tolerance-cents` | `50` | Margem máxima de desvio para contar um bloco como afinado. |
+| `--library` | pasta atual | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` pareados. |
+| `--host` | `127.0.0.1` | Endereço do servidor WebApp. |
+| `--port` | `8000` | Porta HTTP do servidor. |
+| `--reload` | desativada | Reinicia o servidor ao alterar scripts; use apenas em desenvolvimento. |
 | `-h`, `--help` | — | Exibe a ajuda do comando. |
 
 ## Arquitetura
