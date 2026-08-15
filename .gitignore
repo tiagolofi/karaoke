@@ -62,6 +62,8 @@ Thumbs.db
 # Project processing files
 .karaoke-work/
 modelos-baixados/
+videos-originais/
+videos/
 *.ass
 
 # Audio and video assets / generated media

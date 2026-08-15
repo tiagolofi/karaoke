@@ -64,7 +64,12 @@ def create_app(library: Path) -> FastAPI:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inicia o WebApp de karaokê em tempo real.")
-    parser.add_argument("--library", type=Path, default=Path("."), help="Pasta com vídeos e arquivos .audit.json")
+    parser.add_argument(
+        "--library",
+        type=Path,
+        default=Path("videos"),
+        help="Pasta com vídeos e arquivos .audit.json (padrão: videos)",
+    )
     parser.add_argument("--host", default="127.0.0.1", help="Endereço do servidor (padrão: 127.0.0.1)")
     parser.add_argument("--port", type=int, default=8000, help="Porta HTTP (padrão: 8000)")
     parser.add_argument("--reload", action="store_true", help="Reinicia ao alterar scripts durante desenvolvimento")

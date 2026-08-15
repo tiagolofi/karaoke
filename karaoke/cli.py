@@ -26,7 +26,13 @@ def cleanup_work_dir(work_dir: Path, protected_files: list[Path]) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Gera um vídeo de karaokê com letras e notas cantadas.")
     parser.add_argument("video", type=Path, help="Arquivo de vídeo de entrada")
-    parser.add_argument("-o", "--output", type=Path, default=Path("karaoke.mp4"))
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        default=Path("videos/karaoke.mp4"),
+        help="Destino do vídeo final (padrão: videos/karaoke.mp4)",
+    )
     parser.add_argument("--work-dir", type=Path, default=Path(".karaoke-work"))
     parser.add_argument(
         "--models-dir",
@@ -46,6 +52,10 @@ def main() -> None:
     args = parser.parse_args()
     if not args.video.is_file():
         parser.error(f"Vídeo inexistente: {args.video}")
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    if args.audit_json:
+        args.audit_json.parent.mkdir(parents=True, exist_ok=True)
 
     audio = extract_audio(args.video, args.work_dir / "audio.wav")
     lyrics = transcribe(audio, args.model, args.language)

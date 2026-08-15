@@ -26,17 +26,17 @@ env/bin/python -m pip install -e ".[dev]"
 Gera um vídeo de karaokê e o seu JSON de auditoria pareado:
 
 ```bash
-env/bin/karaoke video.mp4 --language pt -o video-pronto-1.mp4
+env/bin/karaoke video.mp4 --language pt -o videos/video-pronto-1.mp4
 ```
 
-O resultado é composto por `video-pronto-1.mp4` e `video-pronto-1.audit.json`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
+O resultado é composto por `videos/video-pronto-1.mp4` e `videos/video-pronto-1.audit.json`. Sem `-o`, o destino padrão é `videos/karaoke.mp4`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
 
 ### Com modelo e auditoria personalizados
 
 ```bash
 env/bin/karaoke video.mp4 --language pt --model medium \
-  -o "Aonde quer chegar - Turma do Pagode.mp4" \
-  --audit-json "Aonde quer chegar - Turma do Pagode.audit.json"
+  -o "videos/Aonde quer chegar - Turma do Pagode.mp4" \
+  --audit-json "videos/Aonde quer chegar - Turma do Pagode.audit.json"
 ```
 
 ### Depuração avançada
@@ -46,7 +46,7 @@ Preserva os artefatos intermediários e usa uma área de trabalho isolada:
 ```bash
 env/bin/karaoke video.mp4 --language pt --model small \
   --work-dir .karaoke-work-debug --keep-work-dir \
-  -o video-debug.mp4
+  -o videos/video-debug.mp4
 ```
 
 ### Flags do pipeline `karaoke`
@@ -54,7 +54,7 @@ env/bin/karaoke video.mp4 --language pt --model small \
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
 | `video` | — | Caminho do vídeo de entrada. |
-| `-o`, `--output` | `karaoke.mp4` | Caminho do vídeo final. O audit padrão usa o mesmo nome com `.audit.json`. |
+| `-o`, `--output` | `videos/karaoke.mp4` | Caminho do vídeo final. O audit padrão usa o mesmo nome com `.audit.json`. |
 | `--work-dir` | `.karaoke-work` | Diretório de áudio, stems e legendas intermediários. |
 | `--models-dir` | `modelos-baixados` | Cache persistente dos modelos de separação; é ignorado pelo Git. |
 | `--keep-work-dir` | desativada | Mantém os intermediários ao término; útil para depuração. |
@@ -69,10 +69,10 @@ Use fones de ouvido para que o áudio do vídeo não entre no microfone. O WebAp
 
 ### Inicializar a aplicação
 
-Abre a biblioteca de vídeos da pasta atual:
+Abre a biblioteca de vídeos da pasta `videos`:
 
 ```bash
-env/bin/python karaoke-real-time/app.py --library .
+env/bin/python karaoke-real-time/app.py
 ```
 
 Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) e permita o acesso ao microfone no navegador.
@@ -92,7 +92,7 @@ Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afi
 
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
-| `--library` | pasta atual | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` pareados. |
+| `--library` | `videos` | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` pareados. |
 | `--host` | `127.0.0.1` | Endereço do servidor WebApp. |
 | `--port` | `8000` | Porta HTTP do servidor. |
 | `--reload` | desativada | Reinicia o servidor ao alterar scripts; use apenas em desenvolvimento. |
