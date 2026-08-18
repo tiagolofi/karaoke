@@ -8,7 +8,7 @@ from .audit import write_audit_json
 from .audio import extract_audio, separate_stems
 from .pitch import detect_notes
 from .render import render_video, write_ass
-from .sync import synchronize
+from .sync import notes_with_lyrics, synchronize
 from .transcribe import transcribe
 
 
@@ -60,8 +60,8 @@ def main() -> None:
     audio = extract_audio(args.video, args.work_dir / "audio.wav")
     lyrics = transcribe(audio, args.model, args.language)
     vocals, instrumental = separate_stems(audio, args.work_dir / "stems", args.models_dir)
-    notes = synchronize(lyrics, detect_notes(str(vocals)))
-    subtitles = write_ass(lyrics, notes, args.work_dir / "karaoke.ass")
+    notes = notes_with_lyrics(synchronize(lyrics, detect_notes(str(vocals))))
+    subtitles = write_ass(lyrics, args.work_dir / "karaoke.ass")
     render_video(args.video, instrumental, subtitles, args.output)
     audit_destination = args.audit_json or args.output.with_suffix(".audit.json")
     audit_path = write_audit_json(

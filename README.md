@@ -65,7 +65,7 @@ env/bin/karaoke video.mp4 --language pt --model small \
 
 ## WebApp em tempo real
 
-Use fones de ouvido para que o áudio do vídeo não entre no microfone. O WebApp exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone e o percentual de acerto no canto. Ao fim do vídeo, ele mostra `Sua nota foi: XX.X%`.
+Use fones de ouvido para que o áudio do vídeo não entre no microfone. O pipeline usa o **BS-Roformer Viperx** para separar vocais e instrumental; o modelo é baixado automaticamente na primeira execução. Somente notas que se sobrepõem a uma letra transcrita entram no audit e na melodia de referência. O WebApp exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone, compensação de latência, tolerância e o percentual de acerto no canto. O botão **Ouvir melodia** sintetiza a melodia registrada no audit a partir do ponto atual do vídeo. O botão **Calibrar microfone** mede o ruído ambiente e, ao usar temporariamente os alto-falantes, tenta medir automaticamente a latência pelo tom de teste. A frequência captada no microfone é suavizada por uma mediana de cinco leituras antes de ser convertida em nota, reduzindo erros isolados como classificar um `G` estável como `F#`. A comparação ignora a oitava: por exemplo, `A#2` conta como acerto para uma referência `A#4`. A tolerância padrão é de meio tom, portanto uma referência `G` também aceita `F#` ou `G#`. Durante o canto, a interface mostra somente o feedback imediato e registra amostras leves de pitch e energia em memória. Ao término, essas amostras são alinhadas à referência por DTW e geram a nota final de 0 a 10. A aplicação não pontua silêncio ou ruído abaixo do limiar calibrado e aguarda 250 ms no início de cada nota antes de avaliar o feedback.
 
 ### Inicializar a aplicação
 
@@ -110,3 +110,9 @@ microfone → pitch em tempo real → comparação com <vídeo>.audit.json → p
 ```
 
 > A transcrição é segmentada por frase. Para realce palavra a palavra, acrescente um alinhador forçado, como WhisperX.
+
+## Licença e direitos de terceiros
+
+O código original deste repositório é disponibilizado sob a [PolyForm Noncommercial 1.0.0](LICENSE), que não autoriza uso comercial sem permissão do titular dos direitos.
+
+Essa licença cobre somente o código original do projeto. Ela não concede direitos sobre músicas, vídeos, letras, pesos de modelos, nem dependências de terceiros. Antes de distribuir ou usar o projeto comercialmente, obtenha as permissões e confira as licenças aplicáveis a esses materiais.

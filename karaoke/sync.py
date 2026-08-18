@@ -11,3 +11,8 @@ def synchronize(lyrics: list[TimedText], notes: list[SungNote]) -> list[SungNote
         lyric = best.text if best and best.start < note.end and best.end > note.start else ""
         result.append(SungNote(note.start, note.end, note.midi, note.hz, lyric))
     return result
+
+
+def notes_with_lyrics(notes: list[SungNote]) -> list[SungNote]:
+    """Mantém somente notas que pertencem a um trecho transcrito de letra."""
+    return [note for note in notes if note.lyric.strip()]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 from urllib.parse import quote
 
@@ -62,6 +63,11 @@ def create_app(library: Path) -> FastAPI:
     return app
 
 
+def create_app_from_environment() -> FastAPI:
+    """Fábrica importável usada pelo Uvicorn quando a recarga está ativa."""
+    return create_app(Path(os.environ.get("KARAOKE_LIBRARY", "videos")))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Inicia o WebApp de karaokê em tempo real.")
     parser.add_argument(
@@ -74,7 +80,21 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8000, help="Porta HTTP (padrão: 8000)")
     parser.add_argument("--reload", action="store_true", help="Reinicia ao alterar scripts durante desenvolvimento")
     args = parser.parse_args()
-    uvicorn.run(create_app(args.library), host=args.host, port=args.port, reload=args.reload)
+    library = args.library.resolve()
+    if args.reload:
+        script_dir = str(Path(__file__).parent.resolve())
+        os.environ["KARAOKE_LIBRARY"] = str(library)
+        os.environ["PYTHONPATH"] = script_dir + os.pathsep + os.environ.get("PYTHONPATH", "")
+        uvicorn.run(
+            "app:create_app_from_environment",
+            factory=True,
+            host=args.host,
+            port=args.port,
+            reload=True,
+            reload_dirs=[script_dir],
+        )
+        return
+    uvicorn.run(create_app(library), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":
