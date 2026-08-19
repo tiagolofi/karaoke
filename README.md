@@ -15,8 +15,9 @@ No diretório do projeto, crie/atualize o ambiente e instale todas as dependênc
 ```bash
 cd /home/tiagolofi/Documentos/projetos/karaoke
 python3.12 -m venv env
-env/bin/python -m pip install --upgrade pip
-env/bin/python -m pip install -e ".[dev]"
+source env/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
 ```
 
 ## Uso do pipeline
@@ -26,7 +27,7 @@ env/bin/python -m pip install -e ".[dev]"
 Gera o vídeo com instrumental e seus JSONs pareados de auditoria e letras:
 
 ```bash
-env/bin/karaoke video.mp4 --language pt -o videos/video-pronto-1.mp4
+karaoke video.mp4 --language pt -o videos/video-pronto-1.mp4
 ```
 
 O resultado é composto por `videos/video-pronto-1.mp4`, `videos/video-pronto-1.audit.json` e `videos/video-pronto-1.lyrics.json`. O vídeo não contém legenda gravada: o arquivo `.lyrics.json` é editável e o WebApp o carrega em tempo real. Sem `-o`, o destino padrão é `videos/karaoke.mp4`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
@@ -34,7 +35,7 @@ O resultado é composto por `videos/video-pronto-1.mp4`, `videos/video-pronto-1.
 ### Com modelo e auditoria personalizados
 
 ```bash
-env/bin/karaoke video.mp4 --language pt --model medium \
+karaoke video.mp4 --language pt --model medium \
   -o "videos/Aonde quer chegar - Turma do Pagode.mp4" \
   --audit-json "videos/Aonde quer chegar - Turma do Pagode.audit.json" \
   --lyrics-json "videos/Aonde quer chegar - Turma do Pagode.lyrics.json"
@@ -45,7 +46,7 @@ env/bin/karaoke video.mp4 --language pt --model medium \
 Preserva os artefatos intermediários e usa uma área de trabalho isolada:
 
 ```bash
-env/bin/karaoke video.mp4 --language pt --model small \
+karaoke video.mp4 --language pt --model small \
   --work-dir .karaoke-work-debug --keep-work-dir \
   -o videos/video-debug.mp4
 ```
@@ -74,7 +75,7 @@ Use fones de ouvido para que o áudio do vídeo não entre no microfone. O pipel
 Abre a biblioteca de vídeos da pasta `videos`:
 
 ```bash
-env/bin/python karaoke-real-time/app.py
+python karaoke-real-time/app.py
 ```
 
 Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) e permita o acesso ao microfone no navegador.
@@ -84,7 +85,7 @@ Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-music
 ### Usar biblioteca e servidor personalizados
 
 ```bash
-env/bin/python karaoke-real-time/app.py --library ./minha-biblioteca \
+karaoke-real-time/app.py --library ./minha-biblioteca \
   --host 127.0.0.1 --port 8080
 ```
 
