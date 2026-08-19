@@ -25,6 +25,7 @@
           <video id="video" playsinline></video>
           <button id="reset" class="reset-button" type="button" title="Reiniciar tentativa">↺ <span>Reset</span></button>
           <div id="score" class="score-pill">Resultado ao término</div>
+          <div id="countdown" class="countdown" hidden aria-live="assertive">3</div>
           <div id="feedback" class="video-feedback">Selecione um vídeo</div>
           <div id="lyrics" class="lyrics-overlay" aria-live="polite"></div>
         </div>
@@ -43,6 +44,10 @@
     <aside class="settings-sidebar" aria-label="Configurações">
       <p class="eyebrow">CONFIGURAÇÕES</p>
       <h2>Ajuste sua sessão</h2>
+      <fieldset class="tone-selector">
+        <legend>Tom da música</legend>
+        <div id="tones" class="tone-options" role="radiogroup" aria-label="Tom da música"></div>
+      </fieldset>
       <div class="audio-controls">
         <label><span>Volume</span><input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
         <label><span>Ganho do microfone</span><input id="gain" type="range" min="0" max="3" step="0.1" value="1"></label>

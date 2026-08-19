@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "karaoke-real-time"))
 
 import app as realtime_app
-from app import sidecar_audit, sidecar_lyrics, video_entries
+from app import shared_lyrics, sidecar_audit, sidecar_lyrics, video_entries
 
 
 def test_sidecar_audit_and_video_discovery(tmp_path):
@@ -16,6 +16,20 @@ def test_sidecar_audit_and_video_discovery(tmp_path):
     assert sidecar_audit(video) == tmp_path / "video-pronto-1.audit.json"
     assert sidecar_lyrics(video) == tmp_path / "video-pronto-1.lyrics.json"
     assert video_entries(tmp_path) == [{"name": video.name, "url": "/media/video-pronto-1.mp4", "has_audit": True}]
+
+
+def test_video_discovery_includes_nested_variants(tmp_path):
+    video = tmp_path / "variantes" / "musica" / "transpose-3" / "karaoke.mp4"
+    video.parent.mkdir(parents=True)
+    video.touch()
+    sidecar_audit(video).write_text("{}")
+
+    assert video_entries(tmp_path) == [{
+        "name": "variantes/musica/transpose-3/karaoke.mp4",
+        "url": "/media/variantes/musica/transpose-3/karaoke.mp4",
+        "has_audit": True,
+    }]
+    assert shared_lyrics(tmp_path, video) == tmp_path / "variantes" / "musica" / "lyrics.json"
 
 
 def test_reload_uses_importable_application_factory(monkeypatch, tmp_path):

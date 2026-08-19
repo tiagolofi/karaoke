@@ -3,6 +3,7 @@ const videos = document.querySelector('#videos');
 const scoreBox = document.querySelector('#score');
 const feedback = document.querySelector('#feedback');
 const lyricOverlay = document.querySelector('#lyrics');
+const countdown = document.querySelector('#countdown');
 const status = document.querySelector('#status');
 const play = document.querySelector('#play');
 const playMelody = document.querySelector('#play-melody');
@@ -19,6 +20,7 @@ const tolerance = document.querySelector('#tolerance');
 const toleranceValue = document.querySelector('#tolerance-value');
 const analysisInterval = document.querySelector('#analysis-interval');
 const analysisIntervalValue = document.querySelector('#analysis-interval-value');
+const tones = document.querySelector('#tones');
 const PITCH_CLASSES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 let reference = [];
@@ -34,11 +36,28 @@ let lastPerformanceFrameTime = -Infinity;
 let lastLiveScoreTime = -Infinity;
 let pitchHistory = [];
 let silenceThreshold = 0.015;
+let songs = [];
+let selectedSong;
+let needsCountdown = true;
+let countdownToken = 0;
 const NOTE_START_WINDOW_SECONDS = 0.25;
 let analysisFrameIntervalSeconds = 0.12;
 const MAX_ANALYSIS_FRAMES = 2500;
 
 function referenceAt(time) { return reference.find((item) => item.start <= time && time <= item.end && item.hz > 0); }
+function videoPath(name) { return name.split('/').map(encodeURIComponent).join('/'); }
+function variantOffset(entry) {
+  const variant = entry.name.split('/').at(-2) || '';
+  if (variant === 'original') return 0;
+  const match = variant.match(/^transpose([+-]\d+)$/);
+  return match ? Number(match[1]) : 0;
+}
+function songFromEntry(entry) {
+  const parts = entry.name.split('/');
+  if (parts[0] === 'variantes' && parts.length >= 4) return parts[1];
+  return entry.name.replace(/\.[^.]+$/, '');
+}
+function toneLabel(offset) { return offset === 0 ? 'Original' : `${offset > 0 ? '+' : ''}${offset} semitons`; }
 function updateLyrics() {
   const lyric = lyrics.find((item) => item.start <= video.currentTime && video.currentTime <= item.end);
   lyricOverlay.textContent = lyric?.text || '';
@@ -374,6 +393,7 @@ function resetSession() {
   lastPerformanceFrameTime = -Infinity;
   lastLiveScoreTime = -Infinity;
   pitchHistory = [];
+  needsCountdown = true;
   scoreBox.textContent = 'Resultado ao término';
 }
 
@@ -412,7 +432,7 @@ function showResult(analysis = alignmentScore()) {
     result.dataset.tier = 'low';
     icon.textContent = '💪';
     title.textContent = 'Vamos tentar de novo';
-    message.textContent = performanceFrames ? 'Ainda não chegou a 10% de acerto. Use a melodia de referência e tente novamente.' : 'Nenhuma voz foi detectada durante a música.';
+    message.textContent = performanceFrames ? 'Use a melodia de referência e tente novamente.' : 'Nenhuma voz foi detectada durante a música.';
   }
   document.querySelector('#result-score').textContent = (score / 10).toFixed(1);
   scoreBox.textContent = `Resultado: ${(score / 10).toFixed(1)}`;
@@ -427,24 +447,86 @@ function finishSession() {
   pitchHistory = [];
 }
 
-async function selectVideo(entry, button) {
+function cancelCountdown() {
+  countdownToken += 1;
+  countdown.hidden = true;
+  play.disabled = false;
+}
+
+async function runCountdown() {
+  const token = ++countdownToken;
+  countdown.hidden = false;
+  for (const number of [3, 2, 1]) {
+    if (token !== countdownToken) return false;
+    countdown.textContent = String(number);
+    await wait(1000);
+  }
+  if (token !== countdownToken) return false;
+  countdown.hidden = true;
+  return true;
+}
+
+function renderSongs() {
+  videos.innerHTML = '';
+  songs.forEach((song) => {
+    const button = document.createElement('button');
+    button.className = 'video-option';
+    button.type = 'button';
+    button.textContent = song.name;
+    button.classList.toggle('active', song.name === selectedSong?.name);
+    button.addEventListener('click', () => selectSong(song));
+    videos.appendChild(button);
+  });
+}
+
+function renderToneOptions() {
+  tones.innerHTML = '';
+  if (!selectedSong) return;
+  selectedSong.variants.forEach((entry) => {
+    const offset = variantOffset(entry);
+    const label = document.createElement('label');
+    label.className = 'tone-option';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = 'tone';
+    input.value = entry.name;
+    input.checked = entry.name === selectedSong.selectedVariant;
+    input.addEventListener('change', async () => {
+      selectedSong.selectedVariant = entry.name;
+      renderToneOptions();
+      await selectVideo(entry);
+    });
+    label.append(input, document.createTextNode(toneLabel(offset)));
+    tones.appendChild(label);
+  });
+}
+
+async function selectSong(song) {
+  selectedSong = song;
+  selectedSong.selectedVariant = song.variants.find((entry) => variantOffset(entry) === 0)?.name || song.variants[0].name;
+  renderSongs();
+  renderToneOptions();
+  await selectVideo(song.variants.find((entry) => entry.name === song.selectedVariant));
+}
+
+async function selectVideo(entry) {
   try {
     status.textContent = 'Carregando referência musical…';
-    const response = await fetch(`/api/videos/${encodeURIComponent(entry.name)}/audit`);
+    const response = await fetch(`/api/videos/${videoPath(entry.name)}/audit`);
     if (!response.ok) throw new Error('Arquivo de referência não encontrado');
     const audit = await response.json();
     reference = audit.notes || [];
-    const lyricsResponse = await fetch(`/api/videos/${encodeURIComponent(entry.name)}/lyrics`);
+    const lyricsResponse = await fetch(`/api/videos/${videoPath(entry.name)}/lyrics`);
     lyrics = lyricsResponse.ok ? (await lyricsResponse.json()).lyrics || [] : audit.lyrics || [];
+    cancelCountdown();
     stopMelody();
     video.pause();
+    video.currentTime = 0;
     video.src = entry.url;
     video.load();
     updateLyrics();
     resetSession();
-    document.querySelectorAll('.video-option').forEach((item) => item.classList.remove('active'));
-    button.classList.add('active');
-    status.textContent = `${entry.name} carregado. Clique em Play para começar.`;
+    status.textContent = `${selectedSong?.name || entry.name} · ${toneLabel(variantOffset(entry))}. Clique em Play para começar.`;
     feedback.textContent = 'Pronto para cantar';
   } catch (error) { status.textContent = error.message; }
 }
@@ -454,21 +536,21 @@ async function loadVideos() {
     const response = await fetch('/api/videos');
     if (!response.ok) throw new Error('Não foi possível carregar a biblioteca de vídeos.');
     const entries = await response.json();
-    videos.innerHTML = '';
-    if (!entries.length) { videos.textContent = 'Nenhum vídeo encontrado.'; return; }
-    const available = [];
-    entries.forEach((entry) => {
-      const button = document.createElement('button');
-      button.className = 'video-option';
-      button.type = 'button';
-      button.disabled = !entry.has_audit;
-      button.innerHTML = `${entry.name}<small>${entry.has_audit ? 'Referência pronta' : 'Sem .audit.json'}</small>`;
-      button.addEventListener('click', () => selectVideo(entry, button));
-      videos.appendChild(button);
-      if (entry.has_audit) available.push({ entry, button });
+    const groups = new Map();
+    entries.filter((entry) => entry.has_audit).forEach((entry) => {
+      const name = songFromEntry(entry);
+      const song = groups.get(name) || { name, variants: [] };
+      const sameTone = song.variants.findIndex((item) => variantOffset(item) === variantOffset(entry));
+      if (sameTone < 0) song.variants.push(entry);
+      else if (entry.name.startsWith('variantes/')) song.variants[sameTone] = entry;
+      groups.set(name, song);
     });
-    if (available.length) await selectVideo(available[0].entry, available[0].button);
-    else status.textContent = 'Há vídeos na biblioteca, mas nenhum possui o arquivo .audit.json pareado.';
+    songs = [...groups.values()].map((song) => ({
+      ...song,
+      variants: song.variants.sort((first, second) => variantOffset(first) - variantOffset(second)),
+    }));
+    if (!songs.length) { videos.textContent = 'Nenhum vídeo com .audit.json encontrado.'; return; }
+    await selectSong(songs[0]);
   } catch (error) {
     videos.textContent = 'Não foi possível carregar os vídeos.';
     status.textContent = error.message;
@@ -491,6 +573,7 @@ calibrateMicrophone.addEventListener('click', runCalibration);
 closeCalibration.addEventListener('click', () => calibration.close());
 document.querySelector('#close-result').addEventListener('click', () => result.close());
 reset.addEventListener('click', () => {
+  cancelCountdown();
   video.pause();
   video.currentTime = 0;
   stopMelody();
@@ -510,6 +593,13 @@ play.addEventListener('click', async () => {
     return;
   }
   try {
+    if (needsCountdown) {
+      play.disabled = true;
+      const completed = await runCountdown();
+      play.disabled = false;
+      if (!completed) return;
+      needsCountdown = false;
+    }
     await video.play();
     play.innerHTML = '❚❚ <span>Pausar</span>';
     try {

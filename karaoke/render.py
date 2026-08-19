@@ -21,6 +21,17 @@ def write_lyrics_json(lyrics: list[TimedText], destination: Path) -> Path:
     return destination
 
 
+def render_instrumental_audio(instrumental: Path, destination: Path, semitones: int) -> Path:
+    """Codifica o instrumental e aplica transpose preservando sua duração."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    command = ["ffmpeg", "-y", "-i", str(instrumental)]
+    if semitones:
+        command.extend(["-af", f"rubberband=pitch={2 ** (semitones / 12):.12f}"])
+    command.extend(["-vn", "-c:a", "aac", "-b:a", "192k", str(destination)])
+    subprocess.run(command, check=True)
+    return destination
+
+
 def render_video(video: Path, instrumental: Path, destination: Path) -> Path:
     """Substitui o áudio original pelo instrumental, sem queimar legendas."""
     destination.parent.mkdir(parents=True, exist_ok=True)

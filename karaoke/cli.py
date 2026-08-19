@@ -7,9 +7,10 @@ from pathlib import Path
 from .audit import write_audit_json
 from .audio import extract_audio, separate_stems
 from .pitch import detect_notes
-from .render import render_video, write_lyrics_json
+from .render import render_instrumental_audio, render_video, write_lyrics_json
 from .sync import notes_with_lyrics, synchronize
 from .transcribe import transcribe
+from .variants import VARIANT_SEMITONES, transpose_notes, variant_directory
 
 
 def cleanup_work_dir(work_dir: Path, protected_files: list[Path]) -> None:
@@ -24,16 +25,22 @@ def cleanup_work_dir(work_dir: Path, protected_files: list[Path]) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Gera um vídeo de karaokê com instrumental, letras e notas de referência.")
+    parser = argparse.ArgumentParser(description="Gera sete variantes de karaokê, do transpose -3 ao +3.")
     parser.add_argument("video", type=Path, help="Arquivo de vídeo de entrada")
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         default=Path("videos/karaoke.mp4"),
-        help="Destino do vídeo final (padrão: videos/karaoke.mp4)",
+        help="Nome da coleção de variantes (padrão: karaoke, derivado deste caminho)",
     )
     parser.add_argument("--work-dir", type=Path, default=Path(".karaoke-work"))
+    parser.add_argument(
+        "--variants-dir",
+        type=Path,
+        default=Path("videos/variantes"),
+        help="Pasta das coleções de variantes (padrão: videos/variantes)",
+    )
     parser.add_argument(
         "--models-dir",
         type=Path,
@@ -45,13 +52,13 @@ def main() -> None:
         "--audit-json",
         type=Path,
         default=None,
-        help="Arquivo JSON da auditoria (padrão: <vídeo-final>.audit.json)",
+        help="Obsoleto: cada variante recebe seu próprio audit no diretório de variantes.",
     )
     parser.add_argument(
         "--lyrics-json",
         type=Path,
         default=None,
-        help="Arquivo JSON editável das legendas (padrão: <vídeo-final>.lyrics.json)",
+        help="Obsoleto: cada variante recebe seu próprio lyrics no diretório de variantes.",
     )
     parser.add_argument("--model", default="small", help="Modelo Whisper (padrão: small)")
     parser.add_argument("--language", default=None, help="Idioma ISO-639-1, ex.: pt")
@@ -59,34 +66,34 @@ def main() -> None:
     if not args.video.is_file():
         parser.error(f"Vídeo inexistente: {args.video}")
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    if args.audit_json:
-        args.audit_json.parent.mkdir(parents=True, exist_ok=True)
-    if args.lyrics_json:
-        args.lyrics_json.parent.mkdir(parents=True, exist_ok=True)
+    if args.audit_json or args.lyrics_json:
+        parser.error("--audit-json e --lyrics-json não são compatíveis com a geração de variantes.")
 
     audio = extract_audio(args.video, args.work_dir / "audio.wav")
     lyrics = transcribe(audio, args.model, args.language)
     vocals, instrumental = separate_stems(audio, args.work_dir / "stems", args.models_dir)
     notes = notes_with_lyrics(synchronize(lyrics, detect_notes(str(vocals))))
-    lyrics_destination = args.lyrics_json or args.output.with_suffix(".lyrics.json")
-    lyrics_path = write_lyrics_json(lyrics, lyrics_destination)
-    render_video(args.video, instrumental, args.output)
-    audit_destination = args.audit_json or args.output.with_suffix(".audit.json")
-    audit_path = write_audit_json(
-        audit_destination,
-        args.video,
-        args.output,
-        lyrics,
-        notes,
-    )
-    print(f"Vídeo pronto: {args.output.resolve()}")
-    print(f"Faixa instrumental: {instrumental.resolve()}")
+    collection_dir = args.variants_dir / args.output.stem
+    protected_files: list[Path] = []
+    lyrics_path = write_lyrics_json(lyrics, collection_dir / "lyrics.json")
+    protected_files.append(lyrics_path)
+    for semitones in VARIANT_SEMITONES:
+        destination = variant_directory(args.variants_dir, args.output.stem, semitones)
+        audio_path = render_instrumental_audio(instrumental, destination / "instrumental.m4a", semitones)
+        video_path = render_video(args.video, audio_path, destination / "karaoke.mp4")
+        audit_path = write_audit_json(
+            destination / "karaoke.audit.json",
+            args.video,
+            video_path,
+            lyrics,
+            transpose_notes(notes, semitones),
+        )
+        protected_files.extend([audio_path, video_path, audit_path])
+        print(f"Variante {semitones:+d}: {video_path.resolve()}")
+    print(f"Coleção de variantes: {collection_dir.resolve()}")
     print(f"Modelos baixados: {args.models_dir.resolve()}")
-    print(f"Auditoria de legendas: {audit_path.resolve()}")
-    print(f"Legendas editáveis: {lyrics_path.resolve()}")
     if not args.keep_work_dir:
-        cleanup_work_dir(args.work_dir, [args.output, audit_path, lyrics_path])
+        cleanup_work_dir(args.work_dir, protected_files)
         print(f"Intermediários removidos: {args.work_dir.resolve()}")
 
 

@@ -5,7 +5,7 @@ Projeto Python 3.12 para gerar vídeos de karaokê e avaliar afinação em tempo
 ## Requisitos
 
 - Python 3.12.x
-- FFmpeg disponível no `PATH`
+- FFmpeg com filtro `rubberband` disponível no `PATH` (usado para transpor sem alterar a duração)
 - Um navegador moderno com permissão para usar o microfone
 
 ## Inicialização
@@ -24,21 +24,20 @@ python -m pip install -e ".[dev]"
 
 ### Mais simples
 
-Gera o vídeo com instrumental e seus JSONs pareados de auditoria e letras:
+Gera sete variantes: três semitons abaixo, original e três semitons acima. A análise de voz, transcrição e separação são executadas uma única vez.
 
 ```bash
 karaoke video.mp4 --language pt -o videos/video-pronto-1.mp4
 ```
 
-O resultado é composto por `videos/video-pronto-1.mp4`, `videos/video-pronto-1.audit.json` e `videos/video-pronto-1.lyrics.json`. O vídeo não contém legenda gravada: o arquivo `.lyrics.json` é editável e o WebApp o carrega em tempo real. Sem `-o`, o destino padrão é `videos/karaoke.mp4`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
+O nome de `-o` define a coleção, neste caso `video-pronto-1`. Os resultados ficam em `videos/variantes/video-pronto-1/`, com as pastas `transpose-3`, `transpose-2`, `transpose-1`, `original`, `transpose+1`, `transpose+2` e `transpose+3`. Cada variante contém `karaoke.mp4`, `instrumental.m4a` e `karaoke.audit.json`. As letras ficam uma única vez em `videos/variantes/video-pronto-1/lyrics.json`, para que uma correção seja refletida em todos os tons. O vídeo não contém legenda gravada e o WebApp carrega esse JSON em tempo real. Sem `-o`, a coleção se chama `karaoke`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
 
-### Com modelo e auditoria personalizados
+### Com nome e diretório de variantes personalizados
 
 ```bash
 karaoke video.mp4 --language pt --model medium \
   -o "videos/Aonde quer chegar - Turma do Pagode.mp4" \
-  --audit-json "videos/Aonde quer chegar - Turma do Pagode.audit.json" \
-  --lyrics-json "videos/Aonde quer chegar - Turma do Pagode.lyrics.json"
+  --variants-dir videos/variantes
 ```
 
 ### Depuração avançada
@@ -56,12 +55,11 @@ karaoke video.mp4 --language pt --model small \
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
 | `video` | — | Caminho do vídeo de entrada. |
-| `-o`, `--output` | `videos/karaoke.mp4` | Caminho do vídeo final, sem legendas gravadas. Os JSONs padrão usam o mesmo nome. |
+| `-o`, `--output` | `videos/karaoke.mp4` | Define o nome da coleção a partir do nome do arquivo, sem a extensão. |
+| `--variants-dir` | `videos/variantes` | Pasta-raiz das coleções e variantes de `-3` a `+3` semitons. |
 | `--work-dir` | `.karaoke-work` | Diretório de áudio e stems intermediários. |
 | `--models-dir` | `modelos-baixados` | Cache persistente dos modelos de separação; é ignorado pelo Git. |
 | `--keep-work-dir` | desativada | Mantém os intermediários ao término; útil para depuração. |
-| `--audit-json` | `<vídeo-final>.audit.json` | Define um destino alternativo para o JSON de auditoria. |
-| `--lyrics-json` | `<vídeo-final>.lyrics.json` | Define um destino alternativo para o JSON editável das letras. |
 | `--model` | `small` | Modelo Faster-Whisper, como `tiny`, `base`, `small`, `medium` ou `large-v3`. |
 | `--language` | detecção automática | Idioma ISO-639-1, por exemplo `pt` ou `en`. |
 | `-h`, `--help` | — | Exibe a ajuda do comando. |
@@ -80,7 +78,7 @@ python karaoke-real-time/app.py
 
 Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) e permita o acesso ao microfone no navegador.
 
-Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Para letras editáveis, adicione também `minha-musica.lyrics.json`; o WebApp o sobrepõe ao vídeo. Para compatibilidade com vídeos já processados, se esse arquivo não existir o WebApp usa as letras do audit. Clique em **Atualizar lista** após adicionar novos vídeos.
+Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Em uma coleção de variantes, as letras editáveis ficam uma única vez em `variantes/<música>/lyrics.json`; o WebApp as aplica a todos os tons. Arquivos antigos com `<vídeo>.lyrics.json` continuam compatíveis. A biblioteca procura recursivamente as variantes em `videos/variantes/`. Se nenhum JSON de letras existir, o WebApp usa as letras do audit. Clique em **Atualizar lista** após adicionar novos vídeos.
 
 ### Usar biblioteca e servidor personalizados
 
@@ -95,7 +93,7 @@ Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afi
 
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
-| `--library` | `videos` | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` e `.lyrics.json` pareados. |
+| `--library` | `videos` | Pasta na qual a sidebar busca vídeos, audits e o `lyrics.json` compartilhado de cada coleção. |
 | `--host` | `127.0.0.1` | Endereço do servidor WebApp. |
 | `--port` | `8000` | Porta HTTP do servidor. |
 | `--reload` | desativada | Reinicia o servidor ao alterar scripts; use apenas em desenvolvimento. |
@@ -104,13 +102,13 @@ Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afi
 ## Arquitetura
 
 ```text
-vídeo → extração de áudio → Whisper → texto → lyrics.json editável ┐
+vídeo → extração de áudio → Whisper → texto → lyrics.json editável compartilhado ┐
                          └→ Audio Separator → vocais → pYIN/librosa → notas ─┤
                                               └→ instrumental ──────────────────┘
-                                                                    └→ vídeo sem legenda + audit.json
+                                                                    └→ transpose -3..+3 → vídeo, áudio e audit por variante
 
 microfone → pitch em tempo real → comparação com <vídeo>.audit.json → nota imediata
-<vídeo>.lyrics.json → sobreposição de letras no WebApp
+<coleção>/lyrics.json → sobreposição de letras no WebApp
 ```
 
 > A transcrição é segmentada por frase. Para realce palavra a palavra, acrescente um alinhador forçado, como WhisperX.

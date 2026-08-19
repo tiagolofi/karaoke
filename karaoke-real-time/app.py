@@ -22,17 +22,29 @@ def sidecar_lyrics(video: Path) -> Path:
     return video.with_suffix(".lyrics.json")
 
 
+def shared_lyrics(library: Path, video: Path) -> Path | None:
+    """Retorna as letras únicas da coleção de variantes, quando houver."""
+    relative = video.relative_to(library)
+    if len(relative.parts) >= 4 and relative.parts[0] == "variantes":
+        return library / "variantes" / relative.parts[1] / "lyrics.json"
+    return None
+
+
 def video_entries(library: Path) -> list[dict[str, object]]:
     return [
-        {"name": video.name, "url": f"/media/{quote(video.name)}", "has_audit": sidecar_audit(video).is_file()}
-        for video in sorted(library.iterdir(), key=lambda item: item.name.lower())
+        {
+            "name": video.relative_to(library).as_posix(),
+            "url": f"/media/{quote(video.relative_to(library).as_posix())}",
+            "has_audit": sidecar_audit(video).is_file(),
+        }
+        for video in sorted(library.rglob("*"), key=lambda item: item.relative_to(library).as_posix().lower())
         if video.is_file() and video.suffix.lower() in VIDEO_EXTENSIONS
     ]
 
 
 def resolve_video(library: Path, filename: str) -> Path:
     candidate = (library / filename).resolve()
-    if candidate.parent != library.resolve() or not candidate.is_file() or candidate.suffix.lower() not in VIDEO_EXTENSIONS:
+    if not candidate.is_relative_to(library.resolve()) or not candidate.is_file() or candidate.suffix.lower() not in VIDEO_EXTENSIONS:
         raise HTTPException(status_code=404, detail="Vídeo não encontrado")
     return candidate
 
@@ -47,21 +59,24 @@ def create_app(library: Path) -> FastAPI:
     def list_videos() -> list[dict[str, object]]:
         return video_entries(library)
 
-    @app.get("/api/videos/{filename}/audit")
+    @app.get("/api/videos/{filename:path}/audit")
     def get_audit(filename: str) -> FileResponse:
         audit = sidecar_audit(resolve_video(library, filename))
         if not audit.is_file():
             raise HTTPException(status_code=404, detail="Auditoria não encontrada")
         return FileResponse(audit, media_type="application/json")
 
-    @app.get("/api/videos/{filename}/lyrics")
+    @app.get("/api/videos/{filename:path}/lyrics")
     def get_lyrics(filename: str) -> FileResponse:
-        lyrics = sidecar_lyrics(resolve_video(library, filename))
+        video = resolve_video(library, filename)
+        lyrics = shared_lyrics(library, video) or sidecar_lyrics(video)
+        if not lyrics.is_file():
+            lyrics = sidecar_lyrics(video)
         if not lyrics.is_file():
             raise HTTPException(status_code=404, detail="Legendas não encontradas")
         return FileResponse(lyrics, media_type="application/json")
 
-    @app.get("/media/{filename}")
+    @app.get("/media/{filename:path}")
     def get_video(filename: str) -> FileResponse:
         return FileResponse(resolve_video(library, filename))
 
