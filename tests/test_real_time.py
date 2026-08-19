@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "karaoke-real-time"))
 
 import app as realtime_app
-from app import sidecar_audit, video_entries
+from app import sidecar_audit, sidecar_lyrics, video_entries
 
 
 def test_sidecar_audit_and_video_discovery(tmp_path):
@@ -14,6 +14,7 @@ def test_sidecar_audit_and_video_discovery(tmp_path):
     (tmp_path / "ignorar.txt").touch()
     (tmp_path / "video-pronto-1.audit.json").write_text("{}")
     assert sidecar_audit(video) == tmp_path / "video-pronto-1.audit.json"
+    assert sidecar_lyrics(video) == tmp_path / "video-pronto-1.lyrics.json"
     assert video_entries(tmp_path) == [{"name": video.name, "url": "/media/video-pronto-1.mp4", "has_audit": True}]
 
 

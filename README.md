@@ -1,11 +1,11 @@
 # Karaoke
 
-Projeto Python 3.12 para gerar vídeos de karaokê e avaliar afinação em tempo real. O pipeline extrai o áudio, transcreve com Whisper, separa voz e instrumental, detecta notas e renderiza legendas sincronizadas. A aplicação em tempo real compara o microfone com o perfil de notas do vídeo escolhido.
+Projeto Python 3.12 para gerar vídeos de karaokê e avaliar afinação em tempo real. O pipeline extrai o áudio, transcreve com Whisper, separa voz e instrumental, detecta notas e gera letras sincronizadas em JSON editável. A aplicação em tempo real compara o microfone com o perfil de notas do vídeo escolhido e desenha as letras sobre o vídeo.
 
 ## Requisitos
 
 - Python 3.12.x
-- FFmpeg com filtro `ass`/libass disponível no `PATH`
+- FFmpeg disponível no `PATH`
 - Um navegador moderno com permissão para usar o microfone
 
 ## Inicialização
@@ -23,20 +23,21 @@ env/bin/python -m pip install -e ".[dev]"
 
 ### Mais simples
 
-Gera um vídeo de karaokê e o seu JSON de auditoria pareado:
+Gera o vídeo com instrumental e seus JSONs pareados de auditoria e letras:
 
 ```bash
 env/bin/karaoke video.mp4 --language pt -o videos/video-pronto-1.mp4
 ```
 
-O resultado é composto por `videos/video-pronto-1.mp4` e `videos/video-pronto-1.audit.json`. Sem `-o`, o destino padrão é `videos/karaoke.mp4`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
+O resultado é composto por `videos/video-pronto-1.mp4`, `videos/video-pronto-1.audit.json` e `videos/video-pronto-1.lyrics.json`. O vídeo não contém legenda gravada: o arquivo `.lyrics.json` é editável e o WebApp o carrega em tempo real. Sem `-o`, o destino padrão é `videos/karaoke.mp4`. Os intermediários em `.karaoke-work/` são removidos ao fim da execução bem-sucedida.
 
 ### Com modelo e auditoria personalizados
 
 ```bash
 env/bin/karaoke video.mp4 --language pt --model medium \
   -o "videos/Aonde quer chegar - Turma do Pagode.mp4" \
-  --audit-json "videos/Aonde quer chegar - Turma do Pagode.audit.json"
+  --audit-json "videos/Aonde quer chegar - Turma do Pagode.audit.json" \
+  --lyrics-json "videos/Aonde quer chegar - Turma do Pagode.lyrics.json"
 ```
 
 ### Depuração avançada
@@ -54,18 +55,19 @@ env/bin/karaoke video.mp4 --language pt --model small \
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
 | `video` | — | Caminho do vídeo de entrada. |
-| `-o`, `--output` | `videos/karaoke.mp4` | Caminho do vídeo final. O audit padrão usa o mesmo nome com `.audit.json`. |
-| `--work-dir` | `.karaoke-work` | Diretório de áudio, stems e legendas intermediários. |
+| `-o`, `--output` | `videos/karaoke.mp4` | Caminho do vídeo final, sem legendas gravadas. Os JSONs padrão usam o mesmo nome. |
+| `--work-dir` | `.karaoke-work` | Diretório de áudio e stems intermediários. |
 | `--models-dir` | `modelos-baixados` | Cache persistente dos modelos de separação; é ignorado pelo Git. |
 | `--keep-work-dir` | desativada | Mantém os intermediários ao término; útil para depuração. |
 | `--audit-json` | `<vídeo-final>.audit.json` | Define um destino alternativo para o JSON de auditoria. |
+| `--lyrics-json` | `<vídeo-final>.lyrics.json` | Define um destino alternativo para o JSON editável das letras. |
 | `--model` | `small` | Modelo Faster-Whisper, como `tiny`, `base`, `small`, `medium` ou `large-v3`. |
 | `--language` | detecção automática | Idioma ISO-639-1, por exemplo `pt` ou `en`. |
 | `-h`, `--help` | — | Exibe a ajuda do comando. |
 
 ## WebApp em tempo real
 
-Use fones de ouvido para que o áudio do vídeo não entre no microfone. O pipeline usa o **BS-Roformer Viperx** para separar vocais e instrumental; o modelo é baixado automaticamente na primeira execução. Somente notas que se sobrepõem a uma letra transcrita entram no audit e na melodia de referência. O WebApp exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone, compensação de latência, tolerância e o percentual de acerto no canto. O botão **Ouvir melodia** sintetiza a melodia registrada no audit a partir do ponto atual do vídeo. O botão **Calibrar microfone** mede o ruído ambiente e, ao usar temporariamente os alto-falantes, tenta medir automaticamente a latência pelo tom de teste. A frequência captada no microfone é suavizada por uma mediana de cinco leituras antes de ser convertida em nota, reduzindo erros isolados como classificar um `G` estável como `F#`. A comparação ignora a oitava: por exemplo, `A#2` conta como acerto para uma referência `A#4`. A tolerância padrão é de meio tom, portanto uma referência `G` também aceita `F#` ou `G#`. Durante o canto, a interface mantém feedback imediato e coleta o áudio do microfone somente em memória. Ao fim, ela envia a gravação ao backend local, que extrai o pitch com pYIN e calcula a nota oficial via DTW; o arquivo temporário é apagado após a avaliação. Se a análise do backend falhar, a interface usa a estimativa local. A aplicação não pontua silêncio ou ruído abaixo do limiar calibrado e aguarda 250 ms no início de cada nota antes de avaliar o feedback.
+Use fones de ouvido para que o áudio do vídeo não entre no microfone. O pipeline usa o **BS-Roformer Viperx** para separar vocais e instrumental; o modelo é baixado automaticamente na primeira execução. Somente notas que se sobrepõem a uma letra transcrita entram no audit e na melodia de referência. O WebApp exibe uma sidebar com os vídeos da biblioteca, controles de reprodução, volume do vídeo, ganho do microfone, compensação de latência, tolerância e o percentual de acerto no canto. O botão **Ouvir melodia** sintetiza a melodia registrada no audit a partir do ponto atual do vídeo. O botão **Calibrar microfone** mede o ruído ambiente e, ao usar temporariamente os alto-falantes, tenta medir automaticamente a latência pelo tom de teste. A frequência captada no microfone é suavizada por uma mediana de cinco leituras antes de ser convertida em nota, reduzindo erros isolados como classificar um `G` estável como `F#`. A comparação ignora a oitava: por exemplo, `A#2` conta como acerto para uma referência `A#4`. A tolerância padrão é de meio tom, portanto uma referência `G` também aceita `F#` ou `G#`. A nota final usa as amostras de pitch já captadas no navegador e é exibida imediatamente ao término, sem nova gravação nem processamento pesado no backend. A opção **Rufem os tambores** acrescenta uma breve espera sonora antes de revelar o resultado. A aplicação não pontua silêncio ou ruído abaixo do limiar calibrado e aguarda 250 ms no início de cada nota antes de avaliar o feedback.
 
 ### Inicializar a aplicação
 
@@ -77,7 +79,7 @@ env/bin/python karaoke-real-time/app.py
 
 Abra [http://127.0.0.1:8000](http://127.0.0.1:8000) e permita o acesso ao microfone no navegador.
 
-Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Clique em **Atualizar lista** após adicionar novos vídeos.
+Todo vídeo elegível precisa ter seu arquivo pareado ao lado, como `minha-musica.mp4` e `minha-musica.audit.json`. Para letras editáveis, adicione também `minha-musica.lyrics.json`; o WebApp o sobrepõe ao vídeo. Para compatibilidade com vídeos já processados, se esse arquivo não existir o WebApp usa as letras do audit. Clique em **Atualizar lista** após adicionar novos vídeos.
 
 ### Usar biblioteca e servidor personalizados
 
@@ -92,7 +94,7 @@ Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afi
 
 | Flag | Padrão | Descrição |
 | --- | --- | --- |
-| `--library` | `videos` | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` pareados. |
+| `--library` | `videos` | Pasta na qual a sidebar busca vídeos e arquivos `.audit.json` e `.lyrics.json` pareados. |
 | `--host` | `127.0.0.1` | Endereço do servidor WebApp. |
 | `--port` | `8000` | Porta HTTP do servidor. |
 | `--reload` | desativada | Reinicia o servidor ao alterar scripts; use apenas em desenvolvimento. |
@@ -101,12 +103,13 @@ Depois, abra `http://127.0.0.1:8080`. A escolha de vídeo e a tolerância de afi
 ## Arquitetura
 
 ```text
-vídeo → extração de áudio → Whisper → texto ┐
+vídeo → extração de áudio → Whisper → texto → lyrics.json editável ┐
                          └→ Audio Separator → vocais → pYIN/librosa → notas ─┤
                                               └→ instrumental ──────────────────┘
-                                                                    └→ vídeo + audit.json
+                                                                    └→ vídeo sem legenda + audit.json
 
-microfone → pitch em tempo real → comparação com <vídeo>.audit.json → percentual de acerto
+microfone → pitch em tempo real → comparação com <vídeo>.audit.json → nota imediata
+<vídeo>.lyrics.json → sobreposição de letras no WebApp
 ```
 
 > A transcrição é segmentada por frase. Para realce palavra a palavra, acrescente um alinhador forçado, como WhisperX.

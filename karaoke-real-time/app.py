@@ -1,26 +1,25 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
-import subprocess
-import tempfile
 from pathlib import Path
 from urllib.parse import quote
 
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from karaoke.evaluation import evaluate_recording
 
 VIDEO_EXTENSIONS = {".mp4", ".mkv", ".mov", ".webm", ".avi"}
 WEB_DIR = Path(__file__).parent / "web"
-MAX_RECORDING_SIZE_BYTES = 50 * 1024 * 1024
 
 
 def sidecar_audit(video: Path) -> Path:
     return video.with_suffix(".audit.json")
+
+
+def sidecar_lyrics(video: Path) -> Path:
+    return video.with_suffix(".lyrics.json")
 
 
 def video_entries(library: Path) -> list[dict[str, object]]:
@@ -36,16 +35,6 @@ def resolve_video(library: Path, filename: str) -> Path:
     if candidate.parent != library.resolve() or not candidate.is_file() or candidate.suffix.lower() not in VIDEO_EXTENSIONS:
         raise HTTPException(status_code=404, detail="Vídeo não encontrado")
     return candidate
-
-
-def recording_suffix(content_type: str | None) -> str:
-    if content_type and "wav" in content_type:
-        return ".wav"
-    if content_type and "ogg" in content_type:
-        return ".ogg"
-    if content_type and "mp4" in content_type:
-        return ".m4a"
-    return ".webm"
 
 
 def create_app(library: Path) -> FastAPI:
@@ -65,36 +54,12 @@ def create_app(library: Path) -> FastAPI:
             raise HTTPException(status_code=404, detail="Auditoria não encontrada")
         return FileResponse(audit, media_type="application/json")
 
-    @app.post("/api/videos/{filename}/evaluate")
-    async def evaluate_video(filename: str, request: Request, tolerance_half_steps: int = 1) -> dict[str, int | float]:
-        if not 0 <= tolerance_half_steps <= 12:
-            raise HTTPException(status_code=422, detail="Tolerância inválida")
-        audit = sidecar_audit(resolve_video(library, filename))
-        if not audit.is_file():
-            raise HTTPException(status_code=404, detail="Auditoria não encontrada")
-        recording = await request.body()
-        if not recording:
-            raise HTTPException(status_code=400, detail="Gravação vazia")
-        if len(recording) > MAX_RECORDING_SIZE_BYTES:
-            raise HTTPException(status_code=413, detail="Gravação excede o limite de 50 MB")
-        try:
-            audit_payload = json.loads(audit.read_text(encoding="utf-8"))
-        except json.JSONDecodeError as error:
-            raise HTTPException(status_code=500, detail="Auditoria inválida") from error
-        with tempfile.TemporaryDirectory(prefix="karaoke-evaluation-") as temporary:
-            temporary_path = Path(temporary)
-            source = temporary_path / f"performance{recording_suffix(request.headers.get('content-type'))}"
-            wav = temporary_path / "performance.wav"
-            source.write_bytes(recording)
-            try:
-                subprocess.run(
-                    ["ffmpeg", "-y", "-i", str(source), "-ac", "1", "-ar", "44100", "-c:a", "pcm_s16le", str(wav)],
-                    check=True,
-                    capture_output=True,
-                )
-                return evaluate_recording(wav, audit_payload, tolerance_half_steps)
-            except (subprocess.CalledProcessError, ValueError) as error:
-                raise HTTPException(status_code=422, detail="Não foi possível analisar a gravação") from error
+    @app.get("/api/videos/{filename}/lyrics")
+    def get_lyrics(filename: str) -> FileResponse:
+        lyrics = sidecar_lyrics(resolve_video(library, filename))
+        if not lyrics.is_file():
+            raise HTTPException(status_code=404, detail="Legendas não encontradas")
+        return FileResponse(lyrics, media_type="application/json")
 
     @app.get("/media/{filename}")
     def get_video(filename: str) -> FileResponse:
