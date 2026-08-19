@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Karaoke em tempo real</title>
+    <link rel="stylesheet" href="/assets/styles.css">
+  </head>
+  <body>
+    <aside class="sidebar">
+      <div class="brand-row">
+        <div>
+          <p class="eyebrow">KARAOKE</p>
+          <h1>Vamos cantar?</h1>
+        </div>
+        <button id="refresh" class="icon-button" type="button" title="Atualizar lista">↻</button>
+      </div>
+      <p class="sidebar-help">O primeiro vídeo com arquivo <code>.audit.json</code> é carregado automaticamente.</p>
+      <nav id="videos" aria-label="Vídeos disponíveis"></nav>
+    </aside>
+
+    <main>
+      <section class="player-card" aria-label="Reprodutor de vídeo">
+        <div class="video-wrap">
+          <video id="video" playsinline></video>
+          <button id="reset" class="reset-button" type="button" title="Reiniciar tentativa">↺ <span>Reset</span></button>
+          <div id="score" class="score-pill">Resultado ao término</div>
+          <div id="feedback" class="video-feedback">Selecione um vídeo</div>
+          <div id="lyrics" class="lyrics-overlay" aria-live="polite"></div>
+        </div>
+        <div class="controls" aria-label="Controles do vídeo">
+          <div class="transport-controls">
+            <button id="back" type="button">⏪ <span>5 s</span></button>
+            <button id="play" class="primary-control" type="button">▶ <span>Play</span></button>
+            <button id="forward" type="button"><span>5 s</span> ⏩</button>
+          </div>
+          <button id="play-melody" class="calibrate-button" type="button">♪ Ouvir melodia</button>
+        </div>
+      </section>
+      <p id="status" class="status-message">Carregando a biblioteca de vídeos…</p>
+    </main>
+
+    <aside class="settings-sidebar" aria-label="Configurações">
+      <p class="eyebrow">CONFIGURAÇÕES</p>
+      <h2>Ajuste sua sessão</h2>
+      <div class="audio-controls">
+        <label><span>Volume</span><input id="volume" type="range" min="0" max="1" step="0.01" value="1"></label>
+        <label><span>Ganho do microfone</span><input id="gain" type="range" min="0" max="3" step="0.1" value="1"></label>
+        <label><span>Compensação do microfone <output id="mic-latency-value">100 ms</output></span><input id="mic-latency" type="range" min="0" max="500" step="10" value="100"></label>
+        <label><span>Tolerância <output id="tolerance-value">½ tom</output></span><input id="tolerance" type="range" min="0" max="6" step="1" value="1" aria-label="Tolerância em meios tons"></label>
+        <label><span>Intervalo de análise <output id="analysis-interval-value">120 ms</output></span><input id="analysis-interval" type="range" min="60" max="300" step="10" value="120"></label>
+      </div>
+      <button id="calibrate-microphone" class="calibrate-button" type="button">Calibrar microfone</button>
+    </aside>
+
+    <dialog id="result" aria-labelledby="result-title">
+      <div class="result-content">
+        <span id="result-icon" class="result-icon" aria-hidden="true">🎤</span>
+        <p class="result-kicker">Nota final (0 a 10)</p>
+        <h2 id="result-title">Sua nota foi</h2>
+        <strong id="result-score" class="result-score">0.0</strong>
+        <p id="result-text" class="result-text"></p>
+        <button id="close-result" class="primary-control" type="button">Fechar</button>
+      </div>
+    </dialog>
+    <dialog id="calibration" aria-labelledby="calibration-title">
+      <div class="result-content">
+        <span class="result-icon" aria-hidden="true">🎛️</span>
+        <p class="result-kicker">Calibração guiada</p>
+        <h2 id="calibration-title">Preparando o microfone</h2>
+        <p id="calibration-text" class="result-text">Vamos medir o ruído ambiente e a latência do microfone.</p>
+        <button id="close-calibration" class="primary-control" type="button" hidden>Concluir</button>
+      </div>
+    </dialog>
+    <script src="/assets/app.js"></script>
+  </body>
+</html>
