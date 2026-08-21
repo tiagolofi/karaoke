@@ -70,8 +70,8 @@ def main() -> None:
         parser.error("--audit-json e --lyrics-json não são compatíveis com a geração de variantes.")
 
     audio = extract_audio(args.video, args.work_dir / "audio.wav")
-    lyrics = transcribe(audio, args.model, args.language)
     vocals, instrumental = separate_stems(audio, args.work_dir / "stems", args.models_dir)
+    lyrics = transcribe(vocals, args.model, args.language)
     notes = notes_with_lyrics(synchronize(lyrics, detect_notes(str(vocals))))
     collection_dir = args.variants_dir / args.output.stem
     protected_files: list[Path] = []
